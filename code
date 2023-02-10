@@ -1,0 +1,66 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+# Solving using linear regression
+def solve_ols(X_train, Y_train, X_test, alpha):
+    W = np.dot(np.linalg.pinv(np.dot(X_train.T, X_train) + alpha*np.identity(np.shape(X_train)[1])), np.dot(X_train.T, Y_train))
+    print ("Optimal W is ", W.flatten())
+    return np.dot(X_train, W), np.dot(X_test, W)
+# Solving using kernel tricks
+def solve_kernel_ls(K_train, Y_train, K_test, alpha):
+    a = np.dot(np.linalg.pinv(K_train + alpha*np.identity(np.shape(X_train)[0])), Y_train)
+    return np.dot(K, a), np.dot(K_test.T, a)
+def gaussian_kernel(X1, X2, sigma):
+    n = np.shape(X1)[0]
+    m = np.shape(X2)[0]
+    norms_X1 = np.sum(np.multiply(X1, X1), axis=1)
+    norms_X2 = np.sum(np.multiply(X2, X2), axis=1)
+    K0 = np.tile(norms_X2, (n, 1)) + np.tile(norms_X1, (m, 1)).T - 2 * (X1 @ X2.T)
+    return np.power(np.exp(-1.0 / sigma**2), K0)
+def run_ols(X_train, Y_train, X_test, Y_test, alpha, plot_X_train, plot_X_test, description, kernel=False):
+    
+    if kernel == False:
+        Y_LS_train, Y_LS_test = solve_ols(X_train, Y_train, X_test, alpha)
+    else:
+        Y_LS_train, Y_LS_test = solve_kernel_ls(X_train, Y_train, X_test, alpha)
+    
+    fig, ax = plt.subplots(figsize=(12,12), dpi=50)
+    
+    ax.plot(plot_X_test, Y_test, 'rx')
+    ax.plot(plot_X_test, Y_LS_test, 'bo')
+
+    ax.set(xlabel='X', ylabel='Y', title=description)
+    ax.grid()
+    plt.show()
+    
+    print ("Mean Squarred Error (MSE) of train data: " , np.square(np.linalg.norm(Y_LS_train-Y_train))/Y_train.size)
+    print ("Mean Squarred Error (MSE) of test data: " , np.square(np.linalg.norm(Y_LS_test-Y_test))/Y_test.size)
+def Train_data():
+    url = 'https://raw.githubusercontent.com/ShadowZzai/Depression/main/b_depressed.csv'
+    df1 = pd.read_csv(url)
+    # Dataset is now stored in a Pandas Dataframe
+    X = df1.iloc[700:, 2: 21]
+    Y = df1.iloc[700:,-1:]
+    return X, Y
+def Test_data():
+    url = 'https://raw.githubusercontent.com/ShadowZzai/Depression/main/b_depressed.csv'
+    df1 = pd.read_csv(url)
+    # Dataset is now stored in a Pandas Dataframe
+    X = df1.iloc[:700, 2: 21]
+    Y = df1.iloc[:700,-1:]
+    return X, Y
+alpha = .1
+
+sigma = .1
+X_train, Y_train = Train_data()
+X_test, Y_test = Test_data()
+X_augmented_train = np.concatenate((X_train, np.ones((729, 1))), axis=1)
+X_augmented_test = np.concatenate((X_test, np.ones((700, 1))), axis=1)
+
+# OLS on the augmented data.
+run_ols(X_augmented_train, Y_train, X_augmented_test, Y_test, alpha, X_train, X_test, "Nonhomogenous line")
+
+# Kernelized Least Squares with Gaussian Kernel
+K = gaussian_kernel(X_train, X_train, sigma)
+K_test = gaussian_kernel(X_train, X_test, sigma)
+run_ols(K, Y_train, K_test, Y_test, alpha, X_train, X_test, "Gaussian Kernel", True)
